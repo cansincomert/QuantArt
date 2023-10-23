@@ -370,8 +370,14 @@ if __name__ == "__main__":
     # (in particular `main.DataModuleFromConfig`)
     sys.path.append(os.getcwd())
 
+    
     parser = get_parser()
+    #args = parser.parse_args()
+
+
     parser = Trainer.add_argparse_args(parser)
+
+    #trainer = Trainer(accelerator="gpu", devices=1)
 
     opt, unknown = parser.parse_known_args()
     if opt.name and opt.resume:
@@ -466,9 +472,15 @@ if __name__ == "__main__":
             },
         }
         default_logger_cfg = default_logger_cfgs["testtube"]
-        logger_cfg = lightning_config.logger or OmegaConf.create()
+        # Check if 'logger' is in lightning_config
+        if 'logger' in lightning_config:
+            logger_cfg = lightning_config.logger
+        else:
+            logger_cfg = OmegaConf.create()
+
         logger_cfg = OmegaConf.merge(default_logger_cfg, logger_cfg)
         trainer_kwargs["logger"] = instantiate_from_config(logger_cfg)
+
 
         # modelcheckpoint - use TrainResult/EvalResult(checkpoint_on=metric) to
         # specify which metric is used to determine best models
@@ -489,9 +501,18 @@ if __name__ == "__main__":
             default_modelckpt_cfg["params"]["monitor"] = model.monitor
             default_modelckpt_cfg["params"]["save_top_k"] = 3
 
-        modelckpt_cfg = lightning_config.modelcheckpoint or OmegaConf.create()
+        # Check if 'modelcheckpoint' is in lightning_config
+        if 'modelcheckpoint' in lightning_config:
+            modelckpt_cfg = lightning_config.modelcheckpoint
+        else:
+            modelckpt_cfg = OmegaConf.create()
+
+        # Merge with default configuration
         modelckpt_cfg = OmegaConf.merge(default_modelckpt_cfg, modelckpt_cfg)
+
+        # Create a checkpoint callback from the merged configuration
         trainer_kwargs["checkpoint_callback"] = instantiate_from_config(modelckpt_cfg)
+
 
         # add callback which sets up log directory
         default_callbacks_cfg = {
@@ -525,11 +546,21 @@ if __name__ == "__main__":
                 }
             },
         }
-        callbacks_cfg = lightning_config.callbacks or OmegaConf.create()
+        # Check if 'callbacks' is in lightning_config
+        if 'callbacks' in lightning_config:
+            callbacks_cfg = lightning_config.callbacks
+        else:
+            callbacks_cfg = OmegaConf.create()
+
+        # Merge with default configuration
         callbacks_cfg = OmegaConf.merge(default_callbacks_cfg, callbacks_cfg)
+
+        # Create callbacks from the merged configuration
         trainer_kwargs["callbacks"] = [instantiate_from_config(callbacks_cfg[k]) for k in callbacks_cfg]
 
+        # Instantiate the Trainer
         trainer = Trainer.from_argparse_args(trainer_opt, **trainer_kwargs)
+
         
         # data
         data = instantiate_from_config(config.data)
